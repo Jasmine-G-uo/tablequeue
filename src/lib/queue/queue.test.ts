@@ -112,9 +112,34 @@ describe("queue domain", () => {
   it.todo(
     "Cancel: Only the guest who owns the entry can cancel it, either while it is waiting or called, and once it is cancelled its status can't change again.",
   );
-  it.todo(
-    "Call next: When staff calls next, the waiting entry with the smallest number becomes called, and if nobody is waiting nothing changes and the result is `queue_empty`.",
-  );
+  describe("Call next: When staff calls next, the waiting entry with the smallest number becomes called, and if nobody is waiting nothing changes and the result is `queue_empty`.", () => {
+    it("calls the waiting entry with the smallest number", () => {
+      const all = [
+        entry({ number: 3 }),
+        entry({ number: 1, status: "called" }),
+        entry({ number: 2 }),
+      ];
+      const result = queue.callNext(all, staff, NOW, TODAY);
+      expect(result).toMatchObject({ ok: true, value: { number: 2, status: "called" } });
+      if (result.ok) expect(result.value.statusChangedAt).toEqual(NOW);
+    });
+
+    it("returns queue_empty and changes nothing when nobody is waiting", () => {
+      const all = [entry({ number: 1, status: "called" }), entry({ number: 2, status: "seated" })];
+      const before = structuredClone(all);
+      expect(queue.callNext(all, staff, NOW, TODAY)).toEqual({
+        ok: false,
+        error: { code: "queue_empty" },
+      });
+      expect(all).toEqual(before);
+    });
+
+    it("does not modify the entries it was given", () => {
+      const waiting = entry({ number: 1 });
+      queue.callNext([waiting], staff, NOW, TODAY);
+      expect(waiting.status).toBe("waiting");
+    });
+  });
   it.todo(
     "Seat / skip: Staff can seat or skip only an entry that is called, which turns it into seated or skipped.",
   );
