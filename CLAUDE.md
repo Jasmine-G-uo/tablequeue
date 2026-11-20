@@ -19,6 +19,8 @@ Auth.js · Vitest · Vercel. Node 24 (`.nvmrc`).
 - Coding and git conventions: @docs/claude/conventions.md
 - Testing strategy (TDD is mandatory): @docs/claude/testing.md
 - Team workflow (sprints, issues, branches, PRs, review): @docs/claude/workflow.md
+- Security rules, OWASP Top 10, Definition of Done: @docs/claude/security.md
+- Context management (`/clear`, `/compact`, `--continue`, subagents): @docs/claude/context-management.md
 - Next.js 16 agent rules (maintained by `next dev`): @AGENTS.md
 
 ## Commands
@@ -53,6 +55,26 @@ Every change starts from a GitHub issue whose acceptance criteria are the failin
 branch per issue → Explore → Plan (committed to `docs/plans/`) → test-first implementation →
 PR with AI disclosure → green CI → partner review → merge commit. Details in `workflow.md` and
 `testing.md`.
+
+## Do
+
+- Read the issue's acceptance criteria and the matching PRD section before touching code.
+- Write the failing test first; keep the red commit with its failing output.
+- Keep domain code pure; pass `now` and the service day in.
+- Check `node_modules/next/dist/docs/` before using a Next.js API from memory.
+- Write decisions into the plan or docs as you make them.
+- Stage files by name and keep each commit to one logical step.
+- Ask before anything irreversible or outward-facing (merging, deleting branches, publishing).
+
+## Don't
+
+- Don't `git add -A`, `git add .`, `git commit -a`, force-push, or push to `main`.
+- Don't read or print real `.env` files or secrets; add new variables to `.env.example` instead.
+- Don't skip, weaken, or delete a test or CI check to get green.
+- Don't trust a client-supplied user or entry id; take ownership from the session.
+- Don't build SQL by string concatenation.
+- Don't add features beyond the issue (multi-restaurant, notifications, ETAs are non-goals).
+- Don't self-approve or merge without the partner's review.
 
 ## Key invariants
 
