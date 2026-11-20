@@ -30,9 +30,34 @@ function entry(overrides: Partial<QueueEntry> = {}): QueueEntry {
 
 // Acceptance criteria from issue #3, word for word. Each becomes a red -> green -> refactor cycle.
 describe("queue domain", () => {
-  it.todo(
-    "Queue number: The first guest to join on a service day gets number 1, and each new guest after that gets the day's highest number plus 1; numbers are unique per restaurant and service day, and a cancelled number is never reused.",
-  );
+  describe("Queue number: The first guest to join on a service day gets number 1, and each new guest after that gets the day's highest number plus 1; numbers are unique per restaurant and service day, and a cancelled number is never reused.", () => {
+    it("gives the first guest of the day number 1", () => {
+      expect(queue.nextQueueNumber([], TODAY)).toBe(1);
+    });
+
+    it("gives the day's highest number plus 1", () => {
+      const entries = [entry({ number: 1 }), entry({ number: 2 }), entry({ number: 3 })];
+      expect(queue.nextQueueNumber(entries, TODAY)).toBe(4);
+    });
+
+    it("never reuses a cancelled or finished number, even the highest one", () => {
+      const entries = [
+        entry({ number: 1, status: "seated" }),
+        entry({ number: 2, status: "cancelled" }),
+      ];
+      expect(queue.nextQueueNumber(entries, TODAY)).toBe(3);
+    });
+
+    it("starts again at 1 on a new service day", () => {
+      const entries = [entry({ number: 7, serviceDay: YESTERDAY })];
+      expect(queue.nextQueueNumber(entries, TODAY)).toBe(1);
+    });
+
+    it("counts only the given restaurant's entries", () => {
+      const entries = [entry({ number: 5, restaurantId: "other" }), entry({ number: 2 })];
+      expect(queue.nextQueueNumber(entries, TODAY, "main")).toBe(3);
+    });
+  });
   it.todo(
     "Parties ahead: Parties ahead counts only the waiting entries from the same service day that have a smaller number, so called and finished entries don't count, and when someone ahead cancels, everyone behind them moves up by one.",
   );
