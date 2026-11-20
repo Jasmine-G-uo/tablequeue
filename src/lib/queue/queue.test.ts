@@ -58,9 +58,57 @@ describe("queue domain", () => {
       expect(queue.nextQueueNumber(entries, TODAY, "main")).toBe(3);
     });
   });
-  it.todo(
-    "Parties ahead: Parties ahead counts only the waiting entries from the same service day that have a smaller number, so called and finished entries don't count, and when someone ahead cancels, everyone behind them moves up by one.",
-  );
+  describe("Parties ahead: Parties ahead counts only the waiting entries from the same service day that have a smaller number, so called and finished entries don't count, and when someone ahead cancels, everyone behind them moves up by one.", () => {
+    it("counts waiting entries with a smaller number", () => {
+      const e1 = entry({ number: 1 });
+      const e2 = entry({ number: 2 });
+      const e3 = entry({ number: 3 });
+      const all = [e3, e1, e2];
+      expect(queue.partiesAhead(all, e1.id, TODAY)).toBe(0);
+      expect(queue.partiesAhead(all, e2.id, TODAY)).toBe(1);
+      expect(queue.partiesAhead(all, e3.id, TODAY)).toBe(2);
+    });
+
+    it("does not count called or finished entries", () => {
+      const mine = entry({ number: 6 });
+      const all = [
+        entry({ number: 1, status: "called" }),
+        entry({ number: 2, status: "seated" }),
+        entry({ number: 3, status: "skipped" }),
+        entry({ number: 4, status: "cancelled" }),
+        entry({ number: 5 }),
+        mine,
+      ];
+      expect(queue.partiesAhead(all, mine.id, TODAY)).toBe(1);
+    });
+
+    it("moves everyone behind up by one when someone ahead cancels", () => {
+      const e1 = entry({ number: 1 });
+      const e2 = entry({ number: 2 });
+      const e3 = entry({ number: 3 });
+      const after = [{ ...e1, status: "cancelled" as const }, e2, e3];
+      expect(queue.partiesAhead(after, e2.id, TODAY)).toBe(0);
+      expect(queue.partiesAhead(after, e3.id, TODAY)).toBe(1);
+    });
+
+    it("is null for an entry that is not waiting or not found", () => {
+      const called = entry({ number: 1, status: "called" });
+      expect(queue.partiesAhead([called], called.id, TODAY)).toBeNull();
+      expect(queue.partiesAhead([called], "missing", TODAY)).toBeNull();
+    });
+
+    it("matches each waiting entry's position among waiting entries in the staff list", () => {
+      const all = [
+        entry({ number: 4 }),
+        entry({ number: 1, status: "called" }),
+        entry({ number: 2 }),
+        entry({ number: 5, status: "seated" }),
+        entry({ number: 3 }),
+      ];
+      const waiting = queue.activeQueue(all, TODAY).filter((e) => e.status === "waiting");
+      waiting.forEach((e, index) => expect(queue.partiesAhead(all, e.id, TODAY)).toBe(index));
+    });
+  });
   it.todo(
     "Cancel: Only the guest who owns the entry can cancel it, either while it is waiting or called, and once it is cancelled its status can't change again.",
   );
