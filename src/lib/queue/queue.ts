@@ -63,3 +63,10 @@ export function canJoin(entries: QueueEntry[], guestId: string, serviceDay: stri
   void serviceDay;
   return { ok: true, value: undefined };
 }
+
+/** Today's waiting and called entries in queue-number order: the staff list (PRD US-05). */
+export function activeQueue(entries: QueueEntry[], serviceDay: string): QueueEntry[] {
+  return entries
+    .filter((e) => e.serviceDay === serviceDay && (e.status === "waiting" || e.status === "called"))
+    .sort((a, b) => a.number - b.number);
+}
