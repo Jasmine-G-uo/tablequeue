@@ -320,9 +320,44 @@ describe("queue domain", () => {
       expect(queue.canJoin([entry({ guestId: BOB })], ANN, TODAY).ok).toBe(true);
     });
   });
-  it.todo(
-    "Wrong role: A guest can't call, seat, or skip, and staff can't cancel on a guest's behalf; both fail with `forbidden` and change nothing.",
-  );
+  describe("Wrong role: A guest can't call, seat, or skip, and staff can't cancel on a guest's behalf; both fail with `forbidden` and change nothing.", () => {
+    it.each([
+      ["waiting", "called"],
+      ["called", "seated"],
+      ["called", "skipped"],
+    ] as const)("refuses a guest moving their own entry %s -> %s", (from, to) => {
+      const mine = entry({ guestId: ANN, status: from });
+      const before = structuredClone(mine);
+      expect(queue.transition(mine, to, guestAnn, NOW, TODAY)).toEqual({
+        ok: false,
+        error: { code: "forbidden" },
+      });
+      expect(mine).toEqual(before);
+    });
+
+    it("refuses a guest pressing call next", () => {
+      const all = [entry({ number: 1 })];
+      const before = structuredClone(all);
+      expect(queue.callNext(all, guestAnn, NOW, TODAY)).toEqual({
+        ok: false,
+        error: { code: "forbidden" },
+      });
+      expect(all).toEqual(before);
+    });
+
+    it.each(["waiting", "called"] as const)(
+      "refuses staff cancelling a guest's entry that is %s",
+      (status) => {
+        const annsEntry = entry({ guestId: ANN, status });
+        const before = structuredClone(annsEntry);
+        expect(queue.transition(annsEntry, "cancelled", staff, NOW, TODAY)).toEqual({
+          ok: false,
+          error: { code: "forbidden" },
+        });
+        expect(annsEntry).toEqual(before);
+      },
+    );
+  });
   describe("Staff list order: The active queue lists today's waiting and called entries in queue-number order, and parties ahead is derived from that same list.", () => {
     it("lists waiting and called entries by queue number, not by input order or join time", () => {
       const third = entry({ number: 3, joinedAt: new Date("2026-11-20T17:00:00Z") });
