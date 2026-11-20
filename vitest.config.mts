@@ -15,7 +15,9 @@ export default defineConfig({
         extends: true,
         test: {
           name: "unit",
-          environment: "jsdom",
+          // Domain and server code run in node. Component tests opt in to the DOM with
+          // a `// @vitest-environment jsdom` comment at the top of the file.
+          environment: "node",
           include: ["src/**/*.test.{ts,tsx}"],
           exclude: ["src/**/*.integration.test.{ts,tsx}"],
           setupFiles: ["./vitest.setup.ts"],
