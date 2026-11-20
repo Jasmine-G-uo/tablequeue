@@ -89,3 +89,28 @@ export function partiesAhead(
   const index = waiting.findIndex((e) => e.id === entryId);
   return index === -1 ? null : index;
 }
+
+/** Moves an entry to a new status, returning a new object (never mutating the input). */
+export function transition(
+  entry: QueueEntry,
+  to: QueueStatus,
+  actor: Actor,
+  now: Date,
+  serviceDay: string,
+): Result<QueueEntry> {
+  void actor;
+  void serviceDay;
+  return { ok: true, value: { ...entry, status: to, statusChangedAt: now } };
+}
+
+/** Staff "Call next": the lowest-numbered waiting entry of the day becomes called (PRD US-05). */
+export function callNext(
+  entries: QueueEntry[],
+  actor: Actor,
+  now: Date,
+  serviceDay: string,
+): Result<QueueEntry> {
+  const next = activeQueue(entries, serviceDay).find((e) => e.status === "waiting");
+  if (!next) return { ok: false, error: { code: "queue_empty" } };
+  return transition(next, "called", actor, now, serviceDay);
+}
