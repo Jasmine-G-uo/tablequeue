@@ -1,0 +1,41 @@
+import { describe, it } from "vitest";
+
+// Acceptance criteria from issue #3, word for word. Each becomes a red -> green -> refactor cycle.
+describe("queue domain", () => {
+  it.todo(
+    "Queue number: The first guest to join on a service day gets number 1, and each new guest after that gets the day's highest number plus 1; numbers are unique per restaurant and service day, and a cancelled number is never reused.",
+  );
+  it.todo(
+    "Parties ahead: Parties ahead counts only the waiting entries from the same service day that have a smaller number, so called and finished entries don't count, and when someone ahead cancels, everyone behind them moves up by one.",
+  );
+  it.todo(
+    "Cancel: Only the guest who owns the entry can cancel it, either while it is waiting or called, and once it is cancelled its status can't change again.",
+  );
+  it.todo(
+    "Call next: When staff calls next, the waiting entry with the smallest number becomes called, and if nobody is waiting nothing changes and the result is `queue_empty`.",
+  );
+  it.todo(
+    "Seat / skip: Staff can seat or skip only an entry that is called, which turns it into seated or skipped.",
+  );
+  it.todo(
+    "Invalid status change: Any change that isn't in the status table, like acting on a finished entry or moving waiting straight to seated, fails with `invalid_transition` and leaves the entry as it was.",
+  );
+  it.todo(
+    "Someone else's entry: Trying to act on another guest's entry fails with `not_found` and changes nothing.",
+  );
+  it.todo(
+    "Entry from yesterday: A waiting or called entry left over from an earlier service day counts as expired: it isn't active, isn't counted in parties ahead, doesn't block the guest from joining again, and can't change status.",
+  );
+  it.todo(
+    "Party size: Only whole numbers from 1 to 20 are accepted as a party size; anything else fails with `invalid_party_size`.",
+  );
+  it.todo(
+    "One active entry: A guest who already has a waiting or called entry today can't join again and gets `already_in_queue` with their existing entry.",
+  );
+  it.todo(
+    "Wrong role: A guest can't call, seat, or skip, and staff can't cancel on a guest's behalf; both fail with `forbidden` and change nothing.",
+  );
+  it.todo(
+    "Staff list order: The active queue lists today's waiting and called entries in queue-number order, and parties ahead is derived from that same list.",
+  );
+});
