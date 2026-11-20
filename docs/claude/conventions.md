@@ -15,7 +15,7 @@
 - Domain code returns `Result<T>`; only infrastructure code throws, and route handlers translate
   errors to the HTTP mapping in PRD §6.2.
 - Names: files `kebab-case.ts`, React components `PascalCase`, functions `camelCase`, error codes
-  `SCREAMING_SNAKE` in the domain and `snake_case` in API responses.
+  `snake_case` everywhere (domain `QueueError`, auth results, and API responses), matching the PRD.
 
 ## Files and folders
 

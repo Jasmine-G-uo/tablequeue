@@ -39,7 +39,8 @@ export default defineConfig({
       reporter: ["text", "html", "lcov"],
       thresholds: {
         // Per-module thresholds are added here as modules land.
-        // Queue domain module (issue #3) will set: "src/lib/queue/**": { lines, functions, branches, statements }
+        // Queue domain (#3): course minimum is 70%; we gate at 90% (docs/claude/testing.md).
+        "src/lib/queue/**": { lines: 90, functions: 90, branches: 90, statements: 90 },
       },
     },
   },
