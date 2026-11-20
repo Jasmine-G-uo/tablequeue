@@ -234,9 +234,54 @@ describe("queue domain", () => {
       });
     });
   });
-  it.todo(
-    "Entry from yesterday: A waiting or called entry left over from an earlier service day counts as expired: it isn't active, isn't counted in parties ahead, doesn't block the guest from joining again, and can't change status.",
-  );
+  describe("Entry from yesterday: A waiting or called entry left over from an earlier service day counts as expired: it isn't active, isn't counted in parties ahead, doesn't block the guest from joining again, and can't change status.", () => {
+    it.each(["waiting", "called"] as const)(
+      "leaves a %s entry from yesterday out of the active queue",
+      (status) => {
+        const leftover = entry({ serviceDay: YESTERDAY, status });
+        expect(queue.activeQueue([leftover], TODAY)).toEqual([]);
+      },
+    );
+
+    it("does not count yesterday's waiting entries in parties ahead", () => {
+      const leftover = entry({ serviceDay: YESTERDAY, number: 1 });
+      const mine = entry({ number: 5 });
+      expect(queue.partiesAhead([leftover, mine], mine.id, TODAY)).toBe(0);
+      expect(queue.partiesAhead([leftover, mine], leftover.id, TODAY)).toBeNull();
+    });
+
+    it("is never called by call next", () => {
+      const leftover = entry({ serviceDay: YESTERDAY, number: 1 });
+      expect(queue.callNext([leftover], staff, NOW, TODAY)).toEqual({
+        ok: false,
+        error: { code: "queue_empty" },
+      });
+    });
+
+    it.each(["waiting", "called"] as const)(
+      "does not block the guest from joining again when the leftover is %s",
+      (status) => {
+        const leftover = entry({ guestId: ANN, serviceDay: YESTERDAY, status });
+        expect(queue.canJoin([leftover], ANN, TODAY)).toEqual({ ok: true, value: undefined });
+      },
+    );
+
+    it.each([
+      ["waiting", "called", staff],
+      ["waiting", "cancelled", guestAnn],
+      ["called", "seated", staff],
+      ["called", "skipped", staff],
+      ["called", "cancelled", guestAnn],
+    ] as const)("refuses %s -> %s on a leftover entry", (from, to, actor) => {
+      const leftover = entry({ guestId: ANN, serviceDay: YESTERDAY, status: from });
+      const before = structuredClone(leftover);
+      expect(queue.transition(leftover, to, actor, NOW, TODAY)).toEqual({
+        ok: false,
+        error: { code: "invalid_transition", from, to },
+      });
+      expect(leftover).toEqual(before);
+    });
+  });
   describe("Party size: Only whole numbers from 1 to 20 are accepted as a party size; anything else fails with `invalid_party_size`.", () => {
     it.each([1, 2, 20])("accepts %j", (size) => {
       expect(queue.validatePartySize(size)).toEqual({ ok: true, value: size });
