@@ -1,4 +1,32 @@
-import { describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
+import * as queue from "./queue";
+import type { Actor, QueueEntry } from "./queue";
+
+const TODAY = "2026-11-20";
+const YESTERDAY = "2026-11-19";
+const NOW = new Date("2026-11-20T19:00:00Z");
+const ANN = "11111111-1111-4111-8111-111111111111";
+const BOB = "22222222-2222-4222-8222-222222222222";
+const guestAnn: Actor = { role: "guest", userId: ANN };
+const guestBob: Actor = { role: "guest", userId: BOB };
+const staff: Actor = { role: "staff", userId: "33333333-3333-4333-8333-333333333333" };
+
+let nextId = 0;
+function entry(overrides: Partial<QueueEntry> = {}): QueueEntry {
+  nextId += 1;
+  return {
+    id: `entry-${nextId}`,
+    restaurantId: "main",
+    guestId: ANN,
+    partySize: 2,
+    serviceDay: TODAY,
+    number: nextId,
+    status: "waiting",
+    joinedAt: new Date("2026-11-20T18:00:00Z"),
+    statusChangedAt: new Date("2026-11-20T18:00:00Z"),
+    ...overrides,
+  };
+}
 
 // Acceptance criteria from issue #3, word for word. Each becomes a red -> green -> refactor cycle.
 describe("queue domain", () => {
@@ -26,9 +54,21 @@ describe("queue domain", () => {
   it.todo(
     "Entry from yesterday: A waiting or called entry left over from an earlier service day counts as expired: it isn't active, isn't counted in parties ahead, doesn't block the guest from joining again, and can't change status.",
   );
-  it.todo(
-    "Party size: Only whole numbers from 1 to 20 are accepted as a party size; anything else fails with `invalid_party_size`.",
-  );
+  describe("Party size: Only whole numbers from 1 to 20 are accepted as a party size; anything else fails with `invalid_party_size`.", () => {
+    it.each([1, 2, 20])("accepts %j", (size) => {
+      expect(queue.validatePartySize(size)).toEqual({ ok: true, value: size });
+    });
+
+    it.each([0, 21, -1, 2.5, Number.NaN, Number.POSITIVE_INFINITY, "3", " 3", null, undefined])(
+      "rejects %j",
+      (size) => {
+        expect(queue.validatePartySize(size)).toEqual({
+          ok: false,
+          error: { code: "invalid_party_size" },
+        });
+      },
+    );
+  });
   it.todo(
     "One active entry: A guest who already has a waiting or called entry today can't join again and gets `already_in_queue` with their existing entry.",
   );
