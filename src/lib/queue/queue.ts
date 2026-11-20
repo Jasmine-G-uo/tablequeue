@@ -20,6 +20,13 @@ export type QueueError =
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: QueueError };
 
+/** Statuses that still hold a place in the queue. */
+const OPEN_STATUSES: ReadonlySet<QueueStatus> = new Set(["waiting", "called"]);
+
+function isOpen(entry: QueueEntry): boolean {
+  return OPEN_STATUSES.has(entry.status);
+}
+
 const MIN_PARTY = 1;
 const MAX_PARTY = 20;
 
@@ -56,9 +63,7 @@ export function nextQueueNumber(
 
 /** A guest may hold at most one waiting or called entry (PRD §4.1). */
 export function canJoin(entries: QueueEntry[], guestId: string, serviceDay: string): Result<void> {
-  const existing = entries.find(
-    (e) => e.guestId === guestId && (e.status === "waiting" || e.status === "called"),
-  );
+  const existing = entries.find((e) => e.guestId === guestId && isOpen(e));
   if (existing) return { ok: false, error: { code: "already_in_queue", entry: existing } };
   void serviceDay;
   return { ok: true, value: undefined };
@@ -67,6 +72,6 @@ export function canJoin(entries: QueueEntry[], guestId: string, serviceDay: stri
 /** Today's waiting and called entries in queue-number order: the staff list (PRD US-05). */
 export function activeQueue(entries: QueueEntry[], serviceDay: string): QueueEntry[] {
   return entries
-    .filter((e) => e.serviceDay === serviceDay && (e.status === "waiting" || e.status === "called"))
+    .filter((e) => e.serviceDay === serviceDay && isOpen(e))
     .sort((a, b) => a.number - b.number);
 }
