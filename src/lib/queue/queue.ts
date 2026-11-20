@@ -20,6 +20,7 @@ export type QueueError =
   | { code: "already_in_queue"; entry: QueueEntry }
   | { code: "invalid_transition"; from: QueueStatus; to: QueueStatus }
   | { code: "not_found" }
+  | { code: "forbidden" }
   | { code: "queue_empty" };
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: QueueError };
@@ -101,6 +102,15 @@ const NEXT_STATUSES: Readonly<Record<QueueStatus, readonly QueueStatus[]>> = {
   cancelled: [],
 };
 
+/** Who may move an entry into each status (PRD §4.2). Nobody moves an entry back to waiting. */
+const ROLE_FOR: Readonly<Record<QueueStatus, Actor["role"] | null>> = {
+  waiting: null,
+  called: "staff",
+  seated: "staff",
+  skipped: "staff",
+  cancelled: "guest",
+};
+
 /** Moves an entry to a new status, returning a new object (never mutating the input). */
 export function transition(
   entry: QueueEntry,
@@ -109,6 +119,10 @@ export function transition(
   now: Date,
   serviceDay: string,
 ): Result<QueueEntry> {
+  const allowedRole = ROLE_FOR[to];
+  if (allowedRole !== null && actor.role !== allowedRole) {
+    return { ok: false, error: { code: "forbidden" } };
+  }
   // Checked before the status, so another guest learns nothing about the entry (PRD §6.2).
   if (actor.role === "guest" && actor.userId !== entry.guestId) {
     return { ok: false, error: { code: "not_found" } };
@@ -127,6 +141,7 @@ export function callNext(
   now: Date,
   serviceDay: string,
 ): Result<QueueEntry> {
+  if (actor.role !== "staff") return { ok: false, error: { code: "forbidden" } };
   const next = activeQueue(entries, serviceDay).find((e) => e.status === "waiting");
   if (!next) return { ok: false, error: { code: "queue_empty" } };
   return transition(next, "called", actor, now, serviceDay);
