@@ -94,9 +94,29 @@ describe("queue domain", () => {
       },
     );
   });
-  it.todo(
-    "One active entry: A guest who already has a waiting or called entry today can't join again and gets `already_in_queue` with their existing entry.",
-  );
+  describe("One active entry: A guest who already has a waiting or called entry today can't join again and gets `already_in_queue` with their existing entry.", () => {
+    it.each(["waiting", "called"] as const)("blocks a guest whose entry is %s", (status) => {
+      const mine = entry({ guestId: ANN, status });
+      expect(queue.canJoin([mine], ANN, TODAY)).toEqual({
+        ok: false,
+        error: { code: "already_in_queue", entry: mine },
+      });
+    });
+
+    it.each(["seated", "skipped", "cancelled"] as const)(
+      "lets a guest join again after a %s entry",
+      (status) => {
+        expect(queue.canJoin([entry({ guestId: ANN, status })], ANN, TODAY)).toEqual({
+          ok: true,
+          value: undefined,
+        });
+      },
+    );
+
+    it("is not blocked by another guest's active entry", () => {
+      expect(queue.canJoin([entry({ guestId: BOB })], ANN, TODAY).ok).toBe(true);
+    });
+  });
   it.todo(
     "Wrong role: A guest can't call, seat, or skip, and staff can't cancel on a guest's behalf; both fail with `forbidden` and change nothing.",
   );
