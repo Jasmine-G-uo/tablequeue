@@ -9,6 +9,30 @@ export interface Queryable {
   ): Promise<{ rows: R[]; rowCount: number | null }>;
 }
 
+/** A pool that can lend one connection for a transaction. `pg.Pool` satisfies it. */
+export interface Database extends Queryable {
+  connect(): Promise<Queryable & { release(): void }>;
+}
+
+/** Runs `fn` inside BEGIN/COMMIT on one connection, rolling back if it throws. */
+export async function withTransaction<T>(
+  db: Database,
+  fn: (tx: Queryable) => Promise<T>,
+): Promise<T> {
+  const client = await db.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await fn(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 let pool: Pool | undefined;
 
 /** The app-wide pool. Library code takes a `Queryable` instead, so tests can pass their own. */

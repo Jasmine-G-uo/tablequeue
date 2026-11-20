@@ -1,6 +1,6 @@
 import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import type { Queryable } from "@/lib/db/pool";
+import type { Database } from "@/lib/db/pool";
 import { authenticate } from "./authenticate";
 import type { Role } from "./users";
 
@@ -52,7 +52,7 @@ export function buildAuthConfig({
   db,
   nodeEnv,
 }: {
-  db: Queryable;
+  db: Database;
   nodeEnv: "development" | "test" | "production";
 }): NextAuthConfig {
   const secure = nodeEnv === "production";

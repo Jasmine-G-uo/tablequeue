@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { buildAuthConfig, sessionCallback, jwtCallback, signOutToSignIn } from "./config";
 
 const EIGHT_HOURS = 8 * 60 * 60;
-const fakeDb = { query: vi.fn() };
+const fakeDb = { query: vi.fn(), connect: vi.fn() };
 
 // Acceptance criteria from issue #2 (US-01).
 describe("session configuration", () => {

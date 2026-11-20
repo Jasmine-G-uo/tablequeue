@@ -1,4 +1,4 @@
-import type { Queryable } from "@/lib/db/pool";
+import { withTransaction, type Database } from "@/lib/db/pool";
 import { verifyPassword } from "./password";
 import { isLocked, recordAttempt } from "./throttle";
 import { findUserByEmail, type User } from "./users";
@@ -10,7 +10,7 @@ import { authFailure, normalizeEmail, type AuthResult } from "./validation";
  * `now` is injectable so throttling can be tested without waiting.
  */
 export async function authenticate(
-  db: Queryable,
+  db: Database,
   input: { email: unknown; password: unknown },
   now: Date = new Date(),
 ): Promise<AuthResult<User>> {
@@ -19,13 +19,20 @@ export async function authenticate(
   }
 
   const email = normalizeEmail(input.email);
-  // Locked attempts are not recorded, so the lock lasts the window and is not extended.
-  if (await isLocked(db, email, now)) return authFailure("invalid_credentials");
+  const password = input.password;
+  return withTransaction(db, async (tx): Promise<AuthResult<User>> => {
+    // One sign-in per email at a time: without this, parallel requests all pass the lock check
+    // before any failure is recorded and can test unlimited passwords (OWASP A07).
+    await tx.query("SELECT pg_advisory_xact_lock(hashtext($1))", [email]);
 
-  const user = await findUserByEmail(db, email);
-  const valid = user !== null && (await verifyPassword(input.password, user.passwordHash));
-  await recordAttempt(db, email, valid, now);
-  if (!valid) return authFailure("invalid_credentials");
+    // Locked attempts are not recorded, so the lock lasts the window and is not extended.
+    if (await isLocked(tx, email, now)) return authFailure("invalid_credentials");
 
-  return { ok: true, value: { id: user.id, email: user.email, role: user.role } };
+    const user = await findUserByEmail(tx, email);
+    const valid = user !== null && (await verifyPassword(password, user.passwordHash));
+    await recordAttempt(tx, email, valid, now);
+    if (!valid) return authFailure("invalid_credentials");
+
+    return { ok: true, value: { id: user.id, email: user.email, role: user.role } };
+  });
 }
