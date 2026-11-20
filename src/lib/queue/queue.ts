@@ -67,9 +67,10 @@ export function nextQueueNumber(
 
 /** A guest may hold at most one waiting or called entry (PRD §4.1). */
 export function canJoin(entries: QueueEntry[], guestId: string, serviceDay: string): Result<void> {
-  const existing = entries.find((e) => e.guestId === guestId && isOpen(e));
+  const existing = entries.find(
+    (e) => e.guestId === guestId && e.serviceDay === serviceDay && isOpen(e),
+  );
   if (existing) return { ok: false, error: { code: "already_in_queue", entry: existing } };
-  void serviceDay;
   return { ok: true, value: undefined };
 }
 
@@ -111,12 +112,12 @@ export function transition(
   now: Date,
   serviceDay: string,
 ): Result<QueueEntry> {
-  void serviceDay;
   // Checked before the status, so another guest learns nothing about the entry (PRD §6.2).
   if (actor.role === "guest" && actor.userId !== entry.guestId) {
     return { ok: false, error: { code: "not_found" } };
   }
-  if (!NEXT_STATUSES[entry.status].includes(to)) {
+  // A leftover entry from an earlier service day is expired and cannot change (PRD §4.1).
+  if (entry.serviceDay !== serviceDay || !NEXT_STATUSES[entry.status].includes(to)) {
     return { ok: false, error: { code: "invalid_transition", from: entry.status, to } };
   }
   return { ok: true, value: { ...entry, status: to, statusChangedAt: now } };
