@@ -27,8 +27,9 @@ export type Result<T> = { ok: true; value: T } | { ok: false; error: QueueError 
 /** Statuses that still hold a place in the queue. */
 const OPEN_STATUSES: ReadonlySet<QueueStatus> = new Set(["waiting", "called"]);
 
-function isOpen(entry: QueueEntry): boolean {
-  return OPEN_STATUSES.has(entry.status);
+/** Active = waiting or called on the given service day; leftovers from earlier days are expired. */
+function isActive(entry: QueueEntry, serviceDay: string): boolean {
+  return entry.serviceDay === serviceDay && OPEN_STATUSES.has(entry.status);
 }
 
 const MIN_PARTY = 1;
@@ -67,18 +68,14 @@ export function nextQueueNumber(
 
 /** A guest may hold at most one waiting or called entry (PRD §4.1). */
 export function canJoin(entries: QueueEntry[], guestId: string, serviceDay: string): Result<void> {
-  const existing = entries.find(
-    (e) => e.guestId === guestId && e.serviceDay === serviceDay && isOpen(e),
-  );
+  const existing = entries.find((e) => e.guestId === guestId && isActive(e, serviceDay));
   if (existing) return { ok: false, error: { code: "already_in_queue", entry: existing } };
   return { ok: true, value: undefined };
 }
 
 /** Today's waiting and called entries in queue-number order: the staff list (PRD US-05). */
 export function activeQueue(entries: QueueEntry[], serviceDay: string): QueueEntry[] {
-  return entries
-    .filter((e) => e.serviceDay === serviceDay && isOpen(e))
-    .sort((a, b) => a.number - b.number);
+  return entries.filter((e) => isActive(e, serviceDay)).sort((a, b) => a.number - b.number);
 }
 
 /**
@@ -117,7 +114,7 @@ export function transition(
     return { ok: false, error: { code: "not_found" } };
   }
   // A leftover entry from an earlier service day is expired and cannot change (PRD §4.1).
-  if (entry.serviceDay !== serviceDay || !NEXT_STATUSES[entry.status].includes(to)) {
+  if (!isActive(entry, serviceDay) || !NEXT_STATUSES[entry.status].includes(to)) {
     return { ok: false, error: { code: "invalid_transition", from: entry.status, to } };
   }
   return { ok: true, value: { ...entry, status: to, statusChangedAt: now } };
