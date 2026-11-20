@@ -103,7 +103,7 @@ export function transition(
 ): Result<QueueEntry> {
   void actor;
   void serviceDay;
-  if ((to === "seated" || to === "skipped") && entry.status !== "called") {
+  if (!isOpen(entry) || ((to === "seated" || to === "skipped") && entry.status !== "called")) {
     return { ok: false, error: { code: "invalid_transition", from: entry.status, to } };
   }
   return { ok: true, value: { ...entry, status: to, statusChangedAt: now } };
