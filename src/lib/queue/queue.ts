@@ -16,7 +16,10 @@ export interface QueueEntry {
 }
 
 export type QueueError =
-  { code: "invalid_party_size" } | { code: "already_in_queue"; entry: QueueEntry };
+  | { code: "invalid_party_size" }
+  | { code: "already_in_queue"; entry: QueueEntry }
+  | { code: "invalid_transition"; from: QueueStatus; to: QueueStatus }
+  | { code: "queue_empty" };
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: QueueError };
 
