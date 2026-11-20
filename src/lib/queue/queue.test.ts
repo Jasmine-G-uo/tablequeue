@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as queue from "./queue";
-import type { Actor, QueueEntry } from "./queue";
+import type { Actor, QueueEntry, QueueStatus } from "./queue";
 
 const TODAY = "2026-11-20";
 const YESTERDAY = "2026-11-19";
@@ -178,9 +178,40 @@ describe("queue domain", () => {
       });
     });
   });
-  it.todo(
-    "Invalid status change: Any change that isn't in the status table, like acting on a finished entry or moving waiting straight to seated, fails with `invalid_transition` and leaves the entry as it was.",
-  );
+  describe("Invalid status change: Any change that isn't in the status table, like acting on a finished entry or moving waiting straight to seated, fails with `invalid_transition` and leaves the entry as it was.", () => {
+    // PRD §4.2. Each target is tried by the actor allowed to make it, so only the table decides.
+    const STATUSES = ["waiting", "called", "seated", "skipped", "cancelled"] as const;
+    const ALLOWED = new Set([
+      "waiting->called",
+      "waiting->cancelled",
+      "called->seated",
+      "called->skipped",
+      "called->cancelled",
+    ]);
+    const actorFor = (to: QueueStatus): Actor => (to === "cancelled" ? guestAnn : staff);
+    const pairs = STATUSES.flatMap((from) => STATUSES.map((to) => [from, to] as const));
+
+    it.each(pairs.filter(([from, to]) => ALLOWED.has(`${from}->${to}`)))(
+      "allows %s -> %s",
+      (from, to) => {
+        const result = queue.transition(entry({ status: from }), to, actorFor(to), NOW, TODAY);
+        expect(result).toMatchObject({ ok: true, value: { status: to } });
+      },
+    );
+
+    it.each(pairs.filter(([from, to]) => !ALLOWED.has(`${from}->${to}`)))(
+      "rejects %s -> %s and leaves the entry as it was",
+      (from, to) => {
+        const original = entry({ status: from });
+        const before = structuredClone(original);
+        expect(queue.transition(original, to, actorFor(to), NOW, TODAY)).toEqual({
+          ok: false,
+          error: { code: "invalid_transition", from, to },
+        });
+        expect(original).toEqual(before);
+      },
+    );
+  });
   it.todo(
     "Someone else's entry: Trying to act on another guest's entry fails with `not_found` and changes nothing.",
   );
