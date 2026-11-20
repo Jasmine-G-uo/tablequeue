@@ -21,8 +21,14 @@ export async function registerAction(_prev: FormState, formData: FormData): Prom
   const password = formData.get("password");
   const result = await registerGuest(getPool(), { email, password });
   if (!result.ok) return { error: MESSAGES[result.error.code] };
-  // signIn redirects on success by throwing Next's redirect signal, so nothing runs after it.
-  await signIn("credentials", { email, password, redirectTo: "/account" });
+  try {
+    // signIn redirects on success by throwing Next's redirect signal, so nothing runs after it.
+    await signIn("credentials", { email, password, redirectTo: "/account" });
+  } catch (error) {
+    // The account exists even if this sign-in failed (e.g. the email was locked beforehand).
+    if (error instanceof AuthError) return { error: "Your account was created. Please sign in." };
+    throw error;
+  }
 }
 
 export async function signInAction(_prev: FormState, formData: FormData): Promise<FormState> {
