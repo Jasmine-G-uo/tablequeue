@@ -1,81 +1,65 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code in this repository. This file stays short; detailed rules live in the
+imported files below and load with it.
 
 ## Project
 
 TableQueue is a digital waitlist for one restaurant: guests register, join the queue, see how many
-parties are ahead, and cancel; staff call the next party and mark it seated or skipped. Stack:
-Next.js 16 (App Router, `src/` dir) · TypeScript (strict) · Tailwind 4 · PostgreSQL · Auth.js ·
-Vercel. Node 24 (`.nvmrc`).
+parties are ahead, and cancel; staff call the next party and mark it seated or skipped.
 
-The spec is `docs/PRD.md` (user stories US-01..US-06, queue state machine, non-functional
-requirements) and the architecture is `docs/plan.md`. Read both before changing behavior. Sprint
-records live in `docs/process/`, independent reviews in `docs/reviews/`.
+**Stack:** Next.js 16 (App Router, `src/`) · TypeScript (strict) · Tailwind 4 · PostgreSQL ·
+Auth.js · Vitest · Vercel. Node 24 (`.nvmrc`).
+
+## Context (imported)
+
+- Product spec — user stories, state machine, non-functional requirements: @docs/PRD.md
+- Architecture and delivery plan: @docs/plan.md
+- Architecture decisions and their reasons: @docs/claude/architecture.md
+- Coding and git conventions: @docs/claude/conventions.md
+- Testing strategy (TDD is mandatory): @docs/claude/testing.md
+- Team workflow (sprints, issues, branches, PRs, review): @docs/claude/workflow.md
+- Next.js 16 agent rules (maintained by `next dev`): @AGENTS.md
 
 ## Commands
 
 ```bash
-npm run dev                # dev server (Next 16 regenerates AGENTS.md on start)
+npm run dev                # dev server (also regenerates AGENTS.md)
 npm run build
 npm run lint               # ESLint (next core-web-vitals + typescript + prettier)
-npm run format:check       # Prettier (printWidth 100, double quotes, trailing commas)
+npm run format             # Prettier write; format:check to verify
 npm run typecheck          # next typegen && tsc --noEmit (typegen must run first)
 npm test                   # Vitest "unit" project
 npm run test:integration   # Vitest "integration" project (real PostgreSQL)
 npm run test:coverage      # unit tests + v8 coverage over src/lib/**
+npx vitest run --project unit src/lib/queue/queue.test.ts   # one file
+npx vitest run --project unit -t "name of the test"         # one test
 ```
 
-Single test file / single test:
+## Validate your own work
+
+Before every commit, run and read the output of:
 
 ```bash
-npx vitest run --project unit src/lib/queue/queue.test.ts
-npx vitest run --project unit -t "name of the test"
+npm run lint && npm run format:check && npm run typecheck && npm test
 ```
 
-## Test layout
+Add `npm run test:integration` for database or auth changes. Never report something as done
+without this passing.
 
-`vitest.config.mts` defines two projects:
+## How we work
 
-- **unit**: `src/**/*.test.{ts,tsx}` (excluding integration), `node` environment. Component tests
-  opt in to the DOM with a `// @vitest-environment jsdom` comment at the top of the file.
-  `vitest.setup.ts` loads jest-dom matchers.
-- **integration**: `src/**/*.integration.test.{ts,tsx}`, `node` environment, runs against
-  PostgreSQL.
+Every change starts from a GitHub issue whose acceptance criteria are the failing tests. One
+branch per issue → Explore → Plan (committed to `docs/plans/`) → test-first implementation →
+PR with AI disclosure → green CI → partner review → merge commit. Details in `workflow.md` and
+`testing.md`.
 
-Coverage only counts `src/lib/**`. Per-module thresholds go in `coverage.thresholds` as one line
-per module glob (e.g. `"src/lib/queue/**"`) so parallel branches don't conflict.
+## Key invariants
 
-## Architecture (from docs/plan.md)
-
-Business rules live in a **pure TypeScript domain module** with no I/O; everything touching the
-database, session, or network is a thin layer around it.
-
-| Module        | Location                           | Notes                                                            |
-| ------------- | ---------------------------------- | ---------------------------------------------------------------- |
-| db            | `src/lib/db/`, `db/migrations/`    | Pool, migrations via `npm run db:migrate`, staff seed            |
-| auth          | `src/lib/auth/`, `src/app/(auth)/` | Auth.js Credentials, hashing, `requireGuest` / `requireStaff`    |
-| queue-domain  | `src/lib/queue/`                   | Pure rules; imports nothing from other modules; built test-first |
-| queue-service | `src/lib/queue-service/`           | Transactions, compare-and-set, maps session → domain `Actor`     |
-| guest-ui      | `src/app/(guest)/`                 | Join, status (10 s refresh), cancel                              |
-| staff-ui      | `src/app/staff/`                   | Queue list, call next, seat, skip                                |
-
-Key invariants:
-
-- Queue states: `waiting → called → seated | skipped`; guest may cancel from `waiting` or
-  `called`. Ordering is always by queue `number`, never `joinedAt`.
+- Queue states: `waiting → called → seated | skipped`; the owning guest may cancel from `waiting`
+  or `called`. Ordering is always by queue `number`, never `joinedAt`.
 - An entry is **active** only if `waiting`/`called` **and** on today's service day; leftover
   entries from earlier days are expired and cannot transition.
-- Domain functions return a typed `Result<T>` / `QueueError` instead of throwing.
+- Domain functions in `src/lib/queue/` are pure and return `Result<T>` / `QueueError`.
 - User ids are string UUIDs; roles are exactly `"guest" | "staff"`.
-- Every transition is a compare-and-set `UPDATE … WHERE status = $from`; call-next uses
-  `FOR UPDATE SKIP LOCKED`; numbering uses a per-day counter row. The DB driver must support
-  interactive transactions.
-- Ownership always comes from the session (`guest_id = session.userId`), never from a
-  client-supplied id.
-
-## Next.js 16 notes
-
-APIs differ from older Next.js versions (e.g. `middleware` → `proxy`, `cacheComponents` is on in
-`next.config.ts`). Check `node_modules/next/dist/docs/` and installed types before relying on
-remembered APIs. Enforce roles in every server action / route handler, not only in `proxy`.
+- Ownership always comes from the session, never from a client-supplied id.
