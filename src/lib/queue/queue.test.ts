@@ -212,9 +212,28 @@ describe("queue domain", () => {
       },
     );
   });
-  it.todo(
-    "Someone else's entry: Trying to act on another guest's entry fails with `not_found` and changes nothing.",
-  );
+  describe("Someone else's entry: Trying to act on another guest's entry fails with `not_found` and changes nothing.", () => {
+    it.each(["waiting", "called"] as const)(
+      "refuses to let another guest cancel an entry that is %s",
+      (status) => {
+        const annsEntry = entry({ guestId: ANN, status });
+        const before = structuredClone(annsEntry);
+        expect(queue.transition(annsEntry, "cancelled", guestBob, NOW, TODAY)).toEqual({
+          ok: false,
+          error: { code: "not_found" },
+        });
+        expect(annsEntry).toEqual(before);
+      },
+    );
+
+    it("answers not_found even when the entry is already final, so it reveals nothing", () => {
+      const annsEntry = entry({ guestId: ANN, status: "seated" });
+      expect(queue.transition(annsEntry, "cancelled", guestBob, NOW, TODAY)).toEqual({
+        ok: false,
+        error: { code: "not_found" },
+      });
+    });
+  });
   it.todo(
     "Entry from yesterday: A waiting or called entry left over from an earlier service day counts as expired: it isn't active, isn't counted in parties ahead, doesn't block the guest from joining again, and can't change status.",
   );
