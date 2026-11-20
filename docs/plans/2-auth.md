@@ -64,3 +64,60 @@ _Read-only exploration before any code. Sources: the repository, issue #2, `docs
   `globalSetup`.
 - Changed: `package.json` (deps + `db:migrate`), `vitest.config.mts` (integration setup, env
   loading, auth coverage threshold).
+
+## Plan
+
+_Designed in Plan mode and approved before implementation._
+
+### Decisions
+
+| Topic           | Choice                                                                                                                                                                                | Why                                                                |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Auth library    | `next-auth@5.0.0-beta.32` (Auth.js), Credentials provider, JWT sessions, `maxAge` 8 h                                                                                                 | App Router–native; JWT is the only strategy Credentials supports   |
+| DB access       | `pg` Pool (`src/lib/db/pool.ts`), parameterized SQL only                                                                                                                              | Interactive transactions needed later (plan §2.3); no ORM to learn |
+| Migrations      | Plain SQL in `db/migrations/NNN_*.sql` + `scripts/migrate.mjs` (pg, records applied files in `schema_migrations`) → `npm run db:migrate`                                              | Zero extra deps; runs unchanged in CI                              |
+| Hashing         | `bcryptjs` cost 12; length checked in UTF-8 **bytes** (8 chars min, 72 bytes max)                                                                                                     | Pure JS, no native build; avoids silent truncation                 |
+| Throttling      | `login_attempts(email, attempted_at, succeeded)`; locked if ≥5 failures in the last 15 min after the last success                                                                     | DB-backed works across serverless instances                        |
+| Testability     | All logic in plain functions; Auth.js `authorize()` is a 3-line adapter over `authenticate()`                                                                                         | Tests run without a Next server                                    |
+| Guards          | `requireGuest/requireStaff(getSession)` return `{ ok: true, user }` or `{ ok: false, status: 401 \| 403, code }`; pages redirect to `/sign-in` on 401                                 | Matches PRD §6.2; session getter injected for tests                |
+| Local DB        | `docker-compose.yml` (postgres:17 on host port 5433), `.env.example` listing `DATABASE_URL`, `AUTH_SECRET`; Claude writes `.env.local` with local-only values without reading it back | Real env files stay unreadable by policy                           |
+| Integration env | `vitest.config.mts` integration project gets `globalSetup` (runs migrations) and loads `.env.local` via Vite `loadEnv`; each test truncates its tables                                | Fixes the known "can't reach DB" trap                              |
+
+### Modules / files
+
+- `src/lib/db/pool.ts`, `scripts/migrate.mjs`, `db/migrations/001_users.sql`
+  (`id uuid default gen_random_uuid()`, `email text`, unique index on `lower(email)`,
+  `password_hash`, `role text check (role in ('guest','staff'))`, `created_at`),
+  `db/migrations/002_login_attempts.sql`
+- `src/lib/auth/validation.ts` — `normalizeEmail`, `validateRegistration` → `invalid_email` / `invalid_password`
+- `src/lib/auth/password.ts` — `hashPassword`, `verifyPassword`
+- `src/lib/auth/users.ts` — `registerGuest` (→ `email_taken` on unique violation), `findUserByEmail`
+- `src/lib/auth/throttle.ts` — `isLocked`, `recordAttempt`
+- `src/lib/auth/authenticate.ts` — throttle → lookup → verify → record; always `invalid_credentials` on failure
+- `src/lib/auth/guards.ts` — `requireGuest`, `requireStaff`
+- `src/auth.ts` — `NextAuth({ providers: [Credentials], session: { strategy: "jwt", maxAge: 8h }, callbacks: id + role into token/session, pages.signIn })`; cookies HttpOnly/SameSite=Lax/Secure-in-prod (Auth.js defaults, asserted in a test of the config)
+- `src/app/api/auth/[...nextauth]/route.ts`, `src/app/(auth)/register/page.tsx` + server action, `src/app/(auth)/sign-in/page.tsx`, sign-out server action; session-reading UI behind `<Suspense>`
+
+### Commit sequence (TDD)
+
+1. `docs(plan): implementation plan for auth (#2)` — this plan into `docs/plans/2-auth.md`
+2. `chore(db): add local Postgres and env example (#2)` — `docker-compose.yml`, `.env.example`
+3. `chore(db): add pg pool, migration runner, users and login_attempts tables (#2)` + integration globalSetup
+4. For each acceptance criterion, `test(auth): add test descriptions from issue (#2)` (it.todo), then per criterion
+   `test(auth): [red] …` (failing output in body) → `feat(auth): [green] …` → optional `refactor(auth): …`:
+   normalization → validation codes → hashing → guest role + `email_taken` → sign-in success/`invalid_credentials`
+   → lockout → guards 401/403 → session lifetime + cookie flags
+5. `feat(auth): wire Auth.js config, route handler, register/sign-in pages, sign-out (#2)`
+6. Push, open Auth PR (base `chore/1-project-setup`) with phase → commit table, AI disclosure, `Closes #2`
+
+### Cut list if time runs short
+
+Page styling (plain accessible forms only); sign-in page error polish; staff seed script stays in backlog (not in #2).
+
+### Verification
+
+- `npm run lint && npm run format:check && npm run typecheck && npm test`
+- `docker compose up -d && npm run db:migrate && npm run test:integration` locally
+- `npm run build` (catches Cache Components session-read errors)
+- Manual smoke: `npm run dev`, register → sign in → sign out → protected page redirects
+- CI green on the Auth PR (all six jobs)
