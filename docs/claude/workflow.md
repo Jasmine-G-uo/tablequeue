@@ -42,5 +42,8 @@ review was applied.
 
 - `package-lock.json` conflicts: take `main`'s version, then run `npm install` and commit the
   result.
+- Generate the lockfile with the same npm major/minor CI uses (currently `npx npm@11.19.1 install`).
+  Older npm 11.x drops optional WebAssembly bindings (`@emnapi/*`), and `npm ci` in CI then fails
+  with "package.json and package-lock.json are not in sync".
 - Link commits with full SHAs (`https://github.com/<owner>/tablequeue/commit/<sha>`), never branch
   links; merge commits keep SHAs stable after branches are deleted.
