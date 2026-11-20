@@ -21,18 +21,20 @@ export function validateRegistration(input: {
   email: unknown;
   password: unknown;
 }): AuthResult<RegistrationInput> {
-  if (typeof input.email !== "string") return fail("invalid_email");
+  if (typeof input.email !== "string") return authFailure("invalid_email");
   const email = normalizeEmail(input.email);
-  if (!EMAIL_PATTERN.test(email)) return fail("invalid_email");
+  if (!EMAIL_PATTERN.test(email)) return authFailure("invalid_email");
 
   const { password } = input;
-  if (typeof password !== "string") return fail("invalid_password");
-  if ([...password].length < MIN_PASSWORD_CHARS) return fail("invalid_password");
-  if (Buffer.byteLength(password, "utf8") > MAX_PASSWORD_BYTES) return fail("invalid_password");
+  if (typeof password !== "string") return authFailure("invalid_password");
+  if ([...password].length < MIN_PASSWORD_CHARS) return authFailure("invalid_password");
+  if (Buffer.byteLength(password, "utf8") > MAX_PASSWORD_BYTES)
+    return authFailure("invalid_password");
 
   return { ok: true, value: { email, password } };
 }
 
-function fail(code: AuthErrorCode): { ok: false; error: { code: AuthErrorCode } } {
+/** The one way to build a failed AuthResult, so every module returns the same shape. */
+export function authFailure(code: AuthErrorCode): { ok: false; error: { code: AuthErrorCode } } {
   return { ok: false, error: { code } };
 }

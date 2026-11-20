@@ -1,6 +1,6 @@
 import type { Queryable } from "@/lib/db/pool";
 import { hashPassword } from "./password";
-import { normalizeEmail, validateRegistration, type AuthResult } from "./validation";
+import { authFailure, normalizeEmail, validateRegistration, type AuthResult } from "./validation";
 
 export type Role = "guest" | "staff";
 
@@ -33,7 +33,7 @@ export async function registerGuest(
     );
     return { ok: true, value: rows[0] };
   } catch (error) {
-    if (isUniqueViolation(error)) return { ok: false, error: { code: "email_taken" } };
+    if (isUniqueViolation(error)) return authFailure("email_taken");
     throw error;
   }
 }
