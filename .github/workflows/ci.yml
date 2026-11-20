@@ -79,7 +79,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version-file: .nvmrc, cache: npm }
       - run: npm ci
-      # No-op until the auth issue adds the migrate script.
+      # Applies db/migrations to the service database (scripts/migrate.mjs, added in #2).
       - run: npm run db:migrate --if-present
       - run: npm run test:integration
 
