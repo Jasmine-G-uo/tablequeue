@@ -59,6 +59,11 @@ describe("sign-in (PostgreSQL)", () => {
       expect(await authenticate(pool, right, at(14))).toEqual(INVALID);
     });
 
+    it("stays locked for 15 minutes after the 5th failure, not 15 minutes after the 1st", async () => {
+      await failFiveTimes(); // the 5th failure is at minute 4, so the lock lasts until minute 19
+      expect(await authenticate(pool, right, at(18))).toEqual(INVALID);
+    });
+
     it("allows sign-in again once the 15-minute window has passed", async () => {
       await failFiveTimes();
       expect((await authenticate(pool, right, at(20))).ok).toBe(true);
