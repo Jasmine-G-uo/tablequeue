@@ -93,6 +93,15 @@ export function partiesAhead(
   return index === -1 ? null : index;
 }
 
+/** The status table (PRD §4.2): every allowed change; seated, skipped and cancelled are final. */
+const NEXT_STATUSES: Readonly<Record<QueueStatus, readonly QueueStatus[]>> = {
+  waiting: ["called", "cancelled"],
+  called: ["seated", "skipped", "cancelled"],
+  seated: [],
+  skipped: [],
+  cancelled: [],
+};
+
 /** Moves an entry to a new status, returning a new object (never mutating the input). */
 export function transition(
   entry: QueueEntry,
@@ -103,7 +112,7 @@ export function transition(
 ): Result<QueueEntry> {
   void actor;
   void serviceDay;
-  if (!isOpen(entry) || ((to === "seated" || to === "skipped") && entry.status !== "called")) {
+  if (!NEXT_STATUSES[entry.status].includes(to)) {
     return { ok: false, error: { code: "invalid_transition", from: entry.status, to } };
   }
   return { ok: true, value: { ...entry, status: to, statusChangedAt: now } };
