@@ -15,7 +15,8 @@ export interface QueueEntry {
   statusChangedAt: Date;
 }
 
-export type QueueError = { code: "invalid_party_size" };
+export type QueueError =
+  { code: "invalid_party_size" } | { code: "already_in_queue"; entry: QueueEntry };
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: QueueError };
 
@@ -51,4 +52,14 @@ export function nextQueueNumber(
     highest = Math.max(highest, e.number);
   }
   return highest + 1;
+}
+
+/** A guest may hold at most one waiting or called entry (PRD §4.1). */
+export function canJoin(entries: QueueEntry[], guestId: string, serviceDay: string): Result<void> {
+  const existing = entries.find(
+    (e) => e.guestId === guestId && (e.status === "waiting" || e.status === "called"),
+  );
+  if (existing) return { ok: false, error: { code: "already_in_queue", entry: existing } };
+  void serviceDay;
+  return { ok: true, value: undefined };
 }
