@@ -140,9 +140,23 @@ describe("queue domain", () => {
       expect(waiting.status).toBe("waiting");
     });
   });
-  it.todo(
-    "Seat / skip: Staff can seat or skip only an entry that is called, which turns it into seated or skipped.",
-  );
+  describe("Seat / skip: Staff can seat or skip only an entry that is called, which turns it into seated or skipped.", () => {
+    it.each(["seated", "skipped"] as const)("turns a called entry into %s", (to) => {
+      const called = entry({ status: "called" });
+      expect(queue.transition(called, to, staff, NOW, TODAY)).toMatchObject({
+        ok: true,
+        value: { id: called.id, status: to, statusChangedAt: NOW },
+      });
+    });
+
+    it.each(["seated", "skipped"] as const)("refuses to make a waiting entry %s", (to) => {
+      const waiting = entry({ status: "waiting" });
+      expect(queue.transition(waiting, to, staff, NOW, TODAY)).toEqual({
+        ok: false,
+        error: { code: "invalid_transition", from: "waiting", to },
+      });
+    });
+  });
   it.todo(
     "Invalid status change: Any change that isn't in the status table, like acting on a finished entry or moving waiting straight to seated, fails with `invalid_transition` and leaves the entry as it was.",
   );
