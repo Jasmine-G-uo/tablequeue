@@ -88,6 +88,17 @@ describe("sign-in (PostgreSQL)", () => {
       expect((await authenticate(pool, right, at(6))).ok).toBe(true);
     });
 
+    it("checks at most 5 passwords even when 10 wrong attempts arrive at the same moment", async () => {
+      // Without serialization every request sees "not locked" before any failure is recorded,
+      // so an attacker could test many passwords at once.
+      await Promise.all(Array.from({ length: 10 }, () => authenticate(pool, wrong, at(0))));
+      const { rows } = await pool.query<{ n: number }>(
+        "SELECT count(*)::int AS n FROM login_attempts WHERE email = 'ann@example.com'",
+      );
+      expect(rows[0].n).toBe(5);
+      expect(await authenticate(pool, right, at(1))).toEqual(INVALID);
+    });
+
     it("locks per email, not globally", async () => {
       await registerGuest(pool, { email: "bob@example.com", password: "correct-horse" });
       await failFiveTimes();
