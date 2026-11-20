@@ -121,3 +121,23 @@ Page styling (plain accessible forms only); sign-in page error polish; staff see
 - `npm run build` (catches Cache Components session-read errors)
 - Manual smoke: `npm run dev`, register → sign in → sign out → protected page redirects
 - CI green on the Auth PR (all six jobs)
+
+## Review fixes (after the PR was opened)
+
+An independent review of the branch found two security bugs and a crash. Each was fixed
+test-first:
+
+| Finding                                                                                                         | Red       | Green     |
+| --------------------------------------------------------------------------------------------------------------- | --------- | --------- |
+| Lockout ended when the 1st failure aged out (≈15 min after it), not 15 min after the 5th                        | `ad3eaad` | `cee70ae` |
+| 10 parallel wrong passwords were all checked: the lock check and the recorded attempt could interleave          | `4b20f79` | `b25863f` |
+| Registration crashed (500) when the automatic sign-in failed, e.g. for an email locked before it was registered | `ef8a934` | `5faca13` |
+
+- **Lock rule now:** locked while some failure in the last 15 minutes completes 5 failures within
+  its own 15-minute window (failures before the last success don't count).
+- **Serialization:** `authenticate()` runs in one transaction that starts with
+  `pg_advisory_xact_lock(hashtext(email))`. Trade-off: a sign-in holds a pooled connection during
+  bcrypt (~0.25 s), which is fine at one restaurant's scale.
+- **Not fixed, by decision:** an unknown email skips bcrypt, so it answers faster than a wrong
+  password. PRD US-01 already accepts that registration reveals whether an email exists
+  (`email_taken`), so the timing difference reveals nothing new. Revisit if that trade-off changes.
