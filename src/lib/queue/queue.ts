@@ -19,6 +19,7 @@ export type QueueError =
   | { code: "invalid_party_size" }
   | { code: "already_in_queue"; entry: QueueEntry }
   | { code: "invalid_transition"; from: QueueStatus; to: QueueStatus }
+  | { code: "not_found" }
   | { code: "queue_empty" };
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: QueueError };
@@ -110,8 +111,11 @@ export function transition(
   now: Date,
   serviceDay: string,
 ): Result<QueueEntry> {
-  void actor;
   void serviceDay;
+  // Checked before the status, so another guest learns nothing about the entry (PRD §6.2).
+  if (actor.role === "guest" && actor.userId !== entry.guestId) {
+    return { ok: false, error: { code: "not_found" } };
+  }
   if (!NEXT_STATUSES[entry.status].includes(to)) {
     return { ok: false, error: { code: "invalid_transition", from: entry.status, to } };
   }
