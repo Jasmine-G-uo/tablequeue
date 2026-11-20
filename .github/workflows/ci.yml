@@ -16,6 +16,8 @@ env:
   # Throwaway values for CI only — never production secrets.
   AUTH_SECRET: ci-only-not-a-real-secret-0123456789abcdef
   DATABASE_URL: postgres://tablequeue:tablequeue@localhost:5432/tablequeue_test
+  TEST_DATABASE_URL: postgres://tablequeue:tablequeue@localhost:5432/tablequeue_test
+  RESTAURANT_TIME_ZONE: America/Los_Angeles
   NEXT_TELEMETRY_DISABLED: "1"
 
 jobs:
