@@ -283,12 +283,12 @@ describe("queue domain", () => {
     });
   });
   describe("Party size: Only whole numbers from 1 to 20 are accepted as a party size; anything else fails with `invalid_party_size`.", () => {
-    it.each([1, 2, 20])("accepts %j", (size) => {
+    it.each([1, 2, 20])("accepts %o", (size) => {
       expect(queue.validatePartySize(size)).toEqual({ ok: true, value: size });
     });
 
     it.each([0, 21, -1, 2.5, Number.NaN, Number.POSITIVE_INFINITY, "3", " 3", null, undefined])(
-      "rejects %j",
+      "rejects %o",
       (size) => {
         expect(queue.validatePartySize(size)).toEqual({
           ok: false,
