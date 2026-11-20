@@ -75,3 +75,17 @@ export function activeQueue(entries: QueueEntry[], serviceDay: string): QueueEnt
     .filter((e) => e.serviceDay === serviceDay && isOpen(e))
     .sort((a, b) => a.number - b.number);
 }
+
+/**
+ * Waiting entries ahead of `entryId` (PRD §4.3), derived from the same list staff see so the two
+ * views cannot disagree. Null when the entry is not an active waiting entry.
+ */
+export function partiesAhead(
+  entries: QueueEntry[],
+  entryId: string,
+  serviceDay: string,
+): number | null {
+  const waiting = activeQueue(entries, serviceDay).filter((e) => e.status === "waiting");
+  const index = waiting.findIndex((e) => e.id === entryId);
+  return index === -1 ? null : index;
+}
