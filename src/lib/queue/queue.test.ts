@@ -120,7 +120,34 @@ describe("queue domain", () => {
   it.todo(
     "Wrong role: A guest can't call, seat, or skip, and staff can't cancel on a guest's behalf; both fail with `forbidden` and change nothing.",
   );
-  it.todo(
-    "Staff list order: The active queue lists today's waiting and called entries in queue-number order, and parties ahead is derived from that same list.",
-  );
+  describe("Staff list order: The active queue lists today's waiting and called entries in queue-number order, and parties ahead is derived from that same list.", () => {
+    it("lists waiting and called entries by queue number, not by input order or join time", () => {
+      const third = entry({ number: 3, joinedAt: new Date("2026-11-20T17:00:00Z") });
+      const first = entry({ number: 1, status: "called" });
+      const second = entry({ number: 2 });
+      expect(queue.activeQueue([third, first, second], TODAY).map((e) => e.number)).toEqual([
+        1, 2, 3,
+      ]);
+    });
+
+    it("leaves out finished entries and other service days", () => {
+      const list = queue.activeQueue(
+        [
+          entry({ number: 1, status: "seated" }),
+          entry({ number: 2, status: "skipped" }),
+          entry({ number: 3, status: "cancelled" }),
+          entry({ number: 9, serviceDay: YESTERDAY }),
+          entry({ number: 4 }),
+        ],
+        TODAY,
+      );
+      expect(list.map((e) => e.number)).toEqual([4]);
+    });
+
+    it("does not reorder the caller's array", () => {
+      const input = [entry({ number: 2 }), entry({ number: 1 })];
+      queue.activeQueue(input, TODAY);
+      expect(input.map((e) => e.number)).toEqual([2, 1]);
+    });
+  });
 });
