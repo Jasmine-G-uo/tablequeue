@@ -109,9 +109,30 @@ describe("queue domain", () => {
       waiting.forEach((e, index) => expect(queue.partiesAhead(all, e.id, TODAY)).toBe(index));
     });
   });
-  it.todo(
-    "Cancel: Only the guest who owns the entry can cancel it, either while it is waiting or called, and once it is cancelled its status can't change again.",
-  );
+  describe("Cancel: Only the guest who owns the entry can cancel it, either while it is waiting or called, and once it is cancelled its status can't change again.", () => {
+    it.each(["waiting", "called"] as const)(
+      "lets the owner cancel an entry that is %s",
+      (status) => {
+        const mine = entry({ guestId: ANN, status });
+        expect(queue.transition(mine, "cancelled", guestAnn, NOW, TODAY)).toMatchObject({
+          ok: true,
+          value: { id: mine.id, status: "cancelled", statusChangedAt: NOW },
+        });
+      },
+    );
+
+    it.each(["cancelled", "waiting", "called", "seated", "skipped"] as const)(
+      "does not let a cancelled entry change to %s",
+      (to) => {
+        const cancelled = entry({ guestId: ANN, status: "cancelled" });
+        const actor = to === "cancelled" ? guestAnn : staff;
+        expect(queue.transition(cancelled, to, actor, NOW, TODAY)).toEqual({
+          ok: false,
+          error: { code: "invalid_transition", from: "cancelled", to },
+        });
+      },
+    );
+  });
   describe("Call next: When staff calls next, the waiting entry with the smallest number becomes called, and if nobody is waiting nothing changes and the result is `queue_empty`.", () => {
     it("calls the waiting entry with the smallest number", () => {
       const all = [
