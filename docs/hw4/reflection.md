@@ -82,7 +82,3 @@ means something, and it caught a type error before a commit later in the sprint.
 first slip; pin the toolchain (npm version) on day one, since a lockfile mismatch failed every CI
 job; and re-read the diff after automated edits, because two edits silently missed lines that
 Prettier had reformatted.
-
-## Partner perspective
-
-_To be added._
