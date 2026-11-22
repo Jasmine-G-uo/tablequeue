@@ -10,7 +10,7 @@ vi.mock("@/auth", () => ({ signIn, signOut: vi.fn() }));
 vi.mock("@/lib/auth/users", () => ({ registerGuest }));
 vi.mock("@/lib/db/pool", () => ({ getPool: vi.fn() }));
 
-const { registerAction } = await import("./actions");
+const { registerAction, signInAction } = await import("./actions");
 
 function form(email: string, password: string): FormData {
   const data = new FormData();
@@ -40,6 +40,23 @@ describe("A visitor can register with an email and a password; the new account h
     const redirect = new Error("NEXT_REDIRECT");
     signIn.mockRejectedValue(redirect);
     await expect(registerAction(undefined, form("ann@example.com", "correct-horse"))).rejects.toBe(
+      redirect,
+    );
+  });
+});
+
+describe("Sign-in succeeds with correct credentials and fails with the single code `invalid_credentials` for both a wrong password and an unknown email.", () => {
+  it("shows the one generic message when Auth.js rejects the credentials", async () => {
+    signIn.mockRejectedValue(new AuthError("CredentialsSignin"));
+    expect(await signInAction(undefined, form("ann@example.com", "wrong-horse"))).toEqual({
+      error: "Email or password is incorrect.",
+    });
+  });
+
+  it("does not swallow other errors, such as Next's redirect signal after a successful sign-in", async () => {
+    const redirect = new Error("NEXT_REDIRECT");
+    signIn.mockRejectedValue(redirect);
+    await expect(signInAction(undefined, form("ann@example.com", "correct-horse"))).rejects.toBe(
       redirect,
     );
   });
