@@ -211,7 +211,9 @@ step it named is exactly the next commit. → [`4194a84`](https://github.com/Jas
   4194a84 docs(explore): findings for guest registration and sign-in (#2)
 ```
 
-**Annotation.** Explore made no code changes. It read the Next.js docs that ship with the
+**Annotation.** Explore made no code changes. In this Claude Code setup, search runs through the
+Bash tool (`grep -n`, `wc -l`) rather than separate Glob/Grep tools, and nothing was edited until
+the findings were written down. It read the Next.js docs that ship with the
 installed version (not the model's memory of older versions) and checked the riskiest dependency
 first. Two findings would have broken a from-memory implementation: `middleware.ts` is now
 `proxy.ts`, and session reads must sit behind `<Suspense>`. → [`4194a84`](https://github.com/Jasmine-G-uo/tablequeue/commit/4194a8447a48aae016c9427a90404ba757ec4cbd)
@@ -246,7 +248,9 @@ chain ends with [`635ad13`](https://github.com/Jasmine-G-uo/tablequeue/commit/63
 
 ## 10. Test descriptions come first (issue #3)
 
-The team's descriptions for criteria 1–8, as written:
+We wrote criteria 1–8, shown below as written. Criteria 9–12 (party size, one active entry, wrong
+role, staff list order) were drafted by Claude Code during a gap check against the PRD, and we
+reviewed and approved them before any test was written.
 
 ```text
 1	Queue number	The first guest to join on a business day gets number 1, and each new guest after that gets the day's highest number plus 1; numbers are unique per restaurant and business day, and a cancelled number is never reused.
@@ -267,9 +271,10 @@ The team's descriptions for criteria 1–8, as written:
   6bd1efa test(queue): add test descriptions from issue #3 as todos (#3)
 ```
 
-**Annotation.** The acceptance criteria became the test names word for word, committed as
-`it.todo` before any implementation existed, so every later red commit turns one of them into a
-real test. The only edit aligned a term with the spec. → [`6bd1efa`](https://github.com/Jasmine-G-uo/tablequeue/commit/6bd1efae1adb62ecfa3b7004218152d9557518d3)
+**Annotation.** All 12 acceptance criteria became the test names, committed as `it.todo` before
+any implementation existed, so every later red commit turns one of them into a real test. The only
+wording change was _business day_ → _service day_, the PRD's term; the issue was updated to match,
+so the issue and the test titles now read the same. → [`6bd1efa`](https://github.com/Jasmine-G-uo/tablequeue/commit/6bd1efae1adb62ecfa3b7004218152d9557518d3)
 
 ---
 
@@ -408,7 +413,7 @@ commit, which is the habit entry 12 set up. → lockout [`ad3eaad`](https://gith
 **Annotation.** Deny rules match by prefix, so `git push origin main` being blocked did not stop
 `git push origin HEAD:main`. The review found these gaps, the rules were extended, and both new
 rules were tested in a live session on a clean tree, where neither command could do harm.
-Branch protection on `main` stays the real backstop. → [`d0d2df4`](https://github.com/Jasmine-G-uo/tablequeue/commit/d0d2df438f87502e381b3afea251c67941218d22)
+Branch protection on `main`, which applies to admins too, stays the real backstop. → [`d0d2df4`](https://github.com/Jasmine-G-uo/tablequeue/commit/d0d2df438f87502e381b3afea251c67941218d22)
 
 ---
 

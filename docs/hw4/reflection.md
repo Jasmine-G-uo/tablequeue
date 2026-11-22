@@ -1,4 +1,6 @@
-# HW4 reflection: Claude Code workflow and TDD
+# HW4 team reflection: Claude Code workflow and TDD
+
+Written by the team.
 
 Project: TableQueue (P3), Sprint 1 · Evidence index: [README.md](README.md) · Session log:
 [session-log.md](session-log.md)
@@ -25,10 +27,12 @@ first and committed next to the findings
 ([`bc081aa`](https://github.com/Jasmine-G-uo/tablequeue/commit/bc081aa0d2f975cccb63015560ab1858e32b2323)).
 The implementation then followed the plan's order, and the plan file is the record of why.
 
-**Implement was test-first, and the tests came from the issue.** For the queue module (#3) the
-acceptance criteria were committed word for word as `it.todo` before any code existed. Every
-criterion then got a red commit with the failing output and a green commit with the minimum code:
-12 criteria, 91 tests, 100% coverage, and a 90% gate in CI (PR #7). Because the criteria are the
+**Implement was test-first, and the tests came from the issue.** For the queue module (#3) we
+wrote criteria 1–8. Criteria 9–12 were drafted by Claude Code during a gap check against the PRD,
+and we reviewed and approved them before any test was written. All twelve were committed as
+`it.todo` before any code existed, with one term aligned to the PRD (_business day_ → _service
+day_). Every criterion then got a red commit with the failing output and a green commit with the
+minimum code: 12 criteria, 100% coverage, and a 90% gate in CI (PR #7). Because the criteria are the
 test names, "is this issue done?" has a mechanical answer.
 
 **Commit kept the history honest.** Small commits with `[red]` / `[green]` tags, merge-commit-only

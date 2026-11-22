@@ -21,10 +21,12 @@ SHAs, so they stay valid after the branches are merged and deleted.
   revised after an independent subagent review ([docs/reviews/prd-review.md](https://github.com/Jasmine-G-uo/tablequeue/blob/d0d2df438f87502e381b3afea251c67941218d22/docs/reviews/prd-review.md),
   [docs/reviews/plan-review.md](https://github.com/Jasmine-G-uo/tablequeue/blob/d0d2df438f87502e381b3afea251c67941218d22/docs/reviews/plan-review.md)).
 - **Issues are testable specs:** issues #1–#4 have acceptance criteria. In #2 and #3 the criteria
-  are the test descriptions, committed as `it.todo` before any code.
+  are the test descriptions, committed as `it.todo` before any code. In #3 we wrote criteria 1–8;
+  criteria 9–12 were drafted by Claude Code during a gap check against the PRD and approved by us.
 - **Sprint record:** [docs/process/sprint-1.md](https://github.com/Jasmine-G-uo/tablequeue/blob/d0d2df438f87502e381b3afea251c67941218d22/docs/process/sprint-1.md); project board with milestone "Sprint 1".
 - **Branch per issue → PR → CI → partner review:** PRs #5 (setup), #6 (auth), #7 (queue), and the
   docs PR are stacked on the setup branch. CI runs six jobs (lint, typecheck, unit tests with
-  coverage, integration tests on PostgreSQL, build, `npm audit`), and `main` is protected.
+  coverage, integration tests on PostgreSQL, build, `npm audit`), and `main` is protected for
+  everyone, admins included.
 - **Agent self-validation:** `CLAUDE.md` gives the agent one command to run before every commit
   (`lint`, `format:check`, `typecheck`, `test`), plus integration tests for database changes.
