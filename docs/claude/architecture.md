@@ -25,7 +25,8 @@ support possible later without a schema rewrite.
 
 ## AD-4 Database enforces concurrency
 
-A per-day counter row (`INSERT … ON CONFLICT DO UPDATE … RETURNING`) assigns numbers, a partial
+A per-day counter row (`INSERT … ON CONFLICT (restaurant_id, service_day) DO UPDATE … RETURNING`)
+assigns numbers, a partial
 unique index allows one active entry per guest, every transition is a compare-and-set
 (`UPDATE … WHERE status = $from`), and call-next uses `FOR UPDATE SKIP LOCKED`.
 **Why:** UI checks cannot prevent races between two staff tablets or a guest double-submitting.
