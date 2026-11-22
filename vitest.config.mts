@@ -45,6 +45,14 @@ export default defineConfig({
       thresholds: {
         // Per-module thresholds are added here as modules land.
         // Queue domain module (issue #3) will set: "src/lib/queue/**": { lines, functions, branches, statements }
+        // Auth (issue #2): the files covered by unit tests. config.ts, users.ts, throttle.ts, and
+        // authenticate.ts run against PostgreSQL in the integration project, which is not counted yet.
+        "src/lib/auth/{validation,password,guards}.ts": {
+          lines: 90,
+          functions: 90,
+          branches: 90,
+          statements: 90,
+        },
       },
     },
   },
