@@ -22,7 +22,9 @@ become failing tests. Vague issues ("add search") are rewritten before work star
 2. **Explore** the relevant code and docs without editing; write findings to
    `docs/plans/<n>-<slug>.md` and commit them (`docs(explore): …`).
 3. **Plan** in Plan mode; add the approved plan to the same file and commit it (`docs(plan): …`)
-   before writing code.
+   before writing code. For a pure domain module whose interface is already specified and
+   reviewed in `docs/plan.md`, that section is the plan; the issue's `docs/plans/<n>-<slug>.md`
+   then records how the interface was settled during TDD.
 4. **Implement** test-first (see `testing.md`), running the self-check before each commit.
 5. **Open a PR** with the template: what changed, how it was validated, the phase → commit table
    for Explore/Plan/Implement/Commit, and the AI disclosure. Use `Closes #n` only when every

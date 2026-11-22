@@ -64,7 +64,8 @@ PR with AI disclosure → green CI → partner review → merge commit. Details 
 - Check `node_modules/next/dist/docs/` before using a Next.js API from memory.
 - Write decisions into the plan or docs as you make them.
 - Stage files by name and keep each commit to one logical step.
-- Ask before anything irreversible or outward-facing (merging, deleting branches, publishing).
+- Push feature branches and open PRs as part of the workflow; ask before anything irreversible
+  (merging, deleting branches, changing repo settings, posting outside GitHub).
 
 ## Don't
 
