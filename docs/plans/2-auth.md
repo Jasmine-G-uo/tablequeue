@@ -141,3 +141,19 @@ test-first:
 - **Not fixed, by decision:** an unknown email skips bcrypt, so it answers faster than a wrong
   password. PRD US-01 already accepts that registration reveals whether an email exists
   (`email_taken`), so the timing difference reveals nothing new. Revisit if that trade-off changes.
+
+## Partner review on PR #6
+
+- **`pg_try_advisory_xact_lock` instead of waiting (not adopted).** Tried in the working tree:
+  with try-lock, the 10-way race test checked only 3 passwords instead of 5, so a burst of wrong
+  passwords never reaches the lockout and the next correct password is accepted. Adopting it would
+  mean weakening that test. It would also make a correct password fail whenever another attempt
+  for the same email is in flight. The pool concern is bounded: the lock check runs before bcrypt,
+  so after 5 failures every queued attempt returns at once, and at most 5 bcrypt checks (~1.25 s)
+  run per email per 15 minutes. Moving bcrypt out of the transaction is the real fix if this
+  ever matters; it is noted in #9, not done here.
+- **Coverage gate:** `src/lib/auth/{validation,password,guards}.ts` gate at 90%. The rest of the
+  module is tested in the integration project, whose coverage is not counted yet (follow-up #10).
+- **`signInAction` tests:** added after the fact (the code came in with the wiring commit), so they
+  passed on first run. A mutation check (catch-all instead of rethrowing non-`AuthError`s) made the
+  rethrow test fail, so the tests do pin the behaviour.
