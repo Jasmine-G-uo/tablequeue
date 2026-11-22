@@ -357,6 +357,50 @@ describe("queue domain", () => {
         expect(annsEntry).toEqual(before);
       },
     );
+
+    // Status x target x actor over Ann's entry, in check order (plan §2.2): a target only one role
+    // may set is refused to the other role (forbidden); another guest gets not_found; only then
+    // does the PRD §4.2 table decide (ok or invalid_transition).
+    const STATUSES = ["waiting", "called", "seated", "skipped", "cancelled"] as const;
+    const TABLE = new Set([
+      "waiting->called",
+      "waiting->cancelled",
+      "called->seated",
+      "called->skipped",
+      "called->cancelled",
+    ]);
+    const ROLE_FOR_TARGET: Partial<Record<QueueStatus, Actor["role"]>> = {
+      called: "staff",
+      seated: "staff",
+      skipped: "staff",
+      cancelled: "guest",
+    };
+    const ACTORS = { staff, "owner guest": guestAnn, "other guest": guestBob } as const;
+    const expected = (who: keyof typeof ACTORS, from: QueueStatus, to: QueueStatus) => {
+      const role = ROLE_FOR_TARGET[to];
+      if (role !== undefined && ACTORS[who].role !== role) return "forbidden";
+      if (who === "other guest") return "not_found";
+      return TABLE.has(`${from}->${to}`) ? "ok" : "invalid_transition";
+    };
+    const cases = (Object.keys(ACTORS) as (keyof typeof ACTORS)[]).flatMap((who) =>
+      STATUSES.flatMap((from) =>
+        STATUSES.map((to) => ({ who, from, to, outcome: expected(who, from, to) })),
+      ),
+    );
+
+    it.each(cases)("$who moving $from -> $to gives $outcome", ({ who, from, to, outcome }) => {
+      const annsEntry = entry({ guestId: ANN, status: from });
+      const before = structuredClone(annsEntry);
+      const result = queue.transition(annsEntry, to, ACTORS[who], NOW, TODAY);
+      if (outcome === "ok") {
+        expect(result).toMatchObject({ ok: true, value: { status: to } });
+      } else if (outcome === "invalid_transition") {
+        expect(result).toEqual({ ok: false, error: { code: outcome, from, to } });
+      } else {
+        expect(result).toEqual({ ok: false, error: { code: outcome } });
+      }
+      expect(annsEntry).toEqual(before);
+    });
   });
   describe("Staff list order: The active queue lists today's waiting and called entries in queue-number order, and parties ahead is derived from that same list.", () => {
     it("lists waiting and called entries by queue number, not by input order or join time", () => {
