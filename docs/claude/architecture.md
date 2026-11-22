@@ -42,7 +42,9 @@ HTTP status (PRD §6.2).
 
 Callers compute `serviceDayFor(now, timeZone)` once and pass `now` and the service day into every
 domain function.
-**Why:** midnight and leftover-entry behavior must be testable with a fixed clock.
+**Why:** midnight and leftover-entry behavior must be testable with a fixed clock. Leftover
+entries are tested in the domain (#3); `serviceDayFor` lives in queue-service, and its midnight,
+UTC-vs-local, and DST tests are criteria of #9.
 
 ## AD-7 Auth.js Credentials with server-side role checks
 

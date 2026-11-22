@@ -98,7 +98,11 @@ transition(entry: QueueEntry, to: QueueStatus, actor: Actor, now: Date, serviceD
   expiry and the status table (`invalid_transition`), so a refusal never reveals another guest's
   entry.
 - `serviceDayFor(now, timeZone)` moved to queue-service: no #3 criterion needs it, and it is the
-  only function that reads a time zone.
+  only function that reads a time zone. Its midnight, UTC-vs-local, and DST tests are criteria of
+  #9.
+- Callers pass one restaurant's entries (AD-2). Only `nextQueueNumber` takes an optional
+  `restaurantId`, because only its criterion names the restaurant ("unique per restaurant and
+  service day"); the other list functions do not filter by restaurant.
 
 ### 2.3 Consistency rules (queue-service)
 
@@ -156,15 +160,15 @@ LIMIT 1 FOR UPDATE SKIP LOCKED`, then the compare-and-set above, in one transact
 
 ## 4. Risks
 
-| Risk                                                                      | Mitigation                                                                                                                               |
-| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Next.js 16 / Auth.js APIs differ from older docs (`middleware` → `proxy`) | Read `node_modules/next/dist/docs/` and installed types first; enforce roles in every server action / route handler, not only in `proxy` |
-| Auth.js compatibility with Next 16 unproven                               | Spike sign-in first in #2; fall back to a minimal session library if blocked                                                             |
-| Race conditions in join / call next / transitions                         | Counter row, compare-and-set, `SKIP LOCKED`, unique indexes (§2.3); integration race tests                                               |
-| Service-day boundary and leftover entries                                 | Service day computed once from the configured time zone and passed in; domain tests across midnight                                      |
-| Serverless driver without transactions                                    | Require a pooled driver with interactive transactions (§2.3)                                                                             |
-| IDOR on guest actions                                                     | Ownership from the session only (§2.3); tests for another guest's entry                                                                  |
-| Merge conflicts between parallel branches                                 | Shared config settled in #1; one threshold line per module; lockfile conflicts resolved from `main`                                      |
+| Risk                                                                      | Mitigation                                                                                                                                                                                               |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Next.js 16 / Auth.js APIs differ from older docs (`middleware` → `proxy`) | Read `node_modules/next/dist/docs/` and installed types first; enforce roles in every server action / route handler, not only in `proxy`                                                                 |
+| Auth.js compatibility with Next 16 unproven                               | Spike sign-in first in #2; fall back to a minimal session library if blocked                                                                                                                             |
+| Race conditions in join / call next / transitions                         | Counter row, compare-and-set, `SKIP LOCKED`, unique indexes (§2.3); integration race tests                                                                                                               |
+| Service-day boundary and leftover entries                                 | Service day computed once from the configured time zone and passed in; leftover entries are unit-tested in the domain (#3); midnight, UTC-vs-local, and DST tests for `serviceDayFor` are criteria of #9 |
+| Serverless driver without transactions                                    | Require a pooled driver with interactive transactions (§2.3)                                                                                                                                             |
+| IDOR on guest actions                                                     | Ownership from the session only (§2.3); tests for another guest's entry                                                                                                                                  |
+| Merge conflicts between parallel branches                                 | Shared config settled in #1; one threshold line per module; lockfile conflicts resolved from `main`                                                                                                      |
 
 ## 5. Change log
 

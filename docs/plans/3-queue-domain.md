@@ -53,7 +53,13 @@ npm test`.
 - **`serviceDayFor(now, timeZone)` moves to queue-service.** No #3 criterion needs it, and it is
   the only function that reads a time zone.
 - **`nextQueueNumber` keeps an optional `restaurantId`**, because the criterion says numbers are
-  unique per restaurant and service day.
+  unique per restaurant and service day. The other list functions do not filter by restaurant:
+  callers pass one restaurant's entries (AD-2). Partner review on PR #7 suggested dropping the
+  parameter or filtering everywhere; it stays, because dropping it would delete the test for part
+  of criterion 1, and filtering everywhere would build multi-restaurant support, a non-goal.
+- **Role table (partner review on PR #7):** a 75-case status x target x actor table checks the
+  error codes in check order. It was added after the implementation, so it passed on first run; a
+  temporary swap of the role and ownership checks made 15 cases fail.
 - **Coverage gate:** `src/lib/queue/**` must stay at 90% lines, functions, branches, and
   statements (course minimum 70%). It is currently 100%.
 
