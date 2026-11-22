@@ -419,5 +419,34 @@ Branch protection on `main`, which applies to admins too, stays the real backsto
 
 ## Review
 
-_To be added after partner review of PRs #5, #6, #7 and this PR: review comments and the
-`Fixed in <sha>` replies._
+The other partner reviewed all four PRs before any merge. Two were approved with suggestions
+(#6 auth, #7 queue) and two came back with changes requested (#5 setup, this PR). Every comment
+got a fix commit or a reply giving the reason, in the form `Fixed in <full sha>`.
+
+| PR        | Outcome           | Blocking finding                                                                                | Resolution                                                                                                                                                   |
+| --------- | ----------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| #5 setup  | Changes requested | Repository admins could bypass the `main` protection, so a direct push would skip review and CI | "Do not allow bypassing" turned on; the API now reports enforcement for everyone (a repo setting)                                                            |
+| #6 auth   | Approved          | —                                                                                               | —                                                                                                                                                            |
+| #7 queue  | Approved          | —                                                                                               | —                                                                                                                                                            |
+| #8 (docs) | Changes requested | The source of criteria 9–12 of #3 was not stated, and "word for word" overstated it             | Stated in entry 10, the reflection, and the README → [`5a17001`](https://github.com/Jasmine-G-uo/tablequeue/commit/5a17001002ca43ed1d20aab0676cf94fca075acc) |
+
+Non-blocking suggestions and what happened to them:
+
+- **#5:** more push and branch-deletion spellings and two more env files denied →
+  [`6fa31d4`](https://github.com/Jasmine-G-uo/tablequeue/commit/6fa31d48e3b738ba2d3f542b30b1a9ee5687e5cf); the counter upsert in the plan had no conflict target, which PostgreSQL
+  rejects → [`f3c9d66`](https://github.com/Jasmine-G-uo/tablequeue/commit/f3c9d66108a5464c6afc1ec0cdbffa5ea4bb04f9).
+- **#6:** coverage gate for the unit-tested auth files → [`8b7fb2f`](https://github.com/Jasmine-G-uo/tablequeue/commit/8b7fb2f32678f6b2b61ead12a0e848f5459f8cf5); tests for `signInAction` →
+  [`eaf7a34`](https://github.com/Jasmine-G-uo/tablequeue/commit/eaf7a34ab044996d4c6a609af6b0b808388d1cd9). Switching the sign-in lock to `pg_try_advisory_xact_lock` was tried and not
+  adopted: the race test then checked 3 passwords instead of 5, so a burst never reached the
+  lockout → reasoning in [`4c5c5e2`](https://github.com/Jasmine-G-uo/tablequeue/commit/4c5c5e2de69fefc3d2a6c7d630786f95e2676da5).
+- **#7:** a 75-case status × target × actor table → [`309771f`](https://github.com/Jasmine-G-uo/tablequeue/commit/309771f0aeabc092087f756ed464ded54fd96b6e); the midnight, UTC-vs-local,
+  and DST cases became criteria of issue #9 and the docs stopped claiming that coverage →
+  [`e70e56d`](https://github.com/Jasmine-G-uo/tablequeue/commit/e70e56d2c04cb8e67fb6e20ab9a512981a24a90f); the optional `restaurantId` was kept, because dropping it would delete the test
+  for part of criterion 1.
+
+**Annotation.** The human review found what the agent's own reviews had missed: a repository
+setting that no file in the repo shows, a SQL statement that would fail in PostgreSQL, and a claim
+in these docs that the issue's edit history contradicted. Two suggestions would have meant
+weakening or deleting a test, so they were checked against the tests and answered with the
+evidence instead of being applied. Tests added after the code (the role table, `signInAction`)
+were checked by temporarily breaking the code and watching them fail.
