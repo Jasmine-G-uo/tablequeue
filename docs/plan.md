@@ -96,10 +96,10 @@ transition(entry: QueueEntry, to: QueueStatus, actor: Actor, now: Date, serviceD
 
 ### 2.3 Consistency rules (queue-service)
 
-- **Numbering:** a per-day counter row,
+- **Numbering:** a per-day counter row keyed by a primary key on `(restaurant_id, service_day)`,
   `INSERT INTO queue_counters (restaurant_id, service_day, last_number) VALUES (…, 1)
-ON CONFLICT DO UPDATE SET last_number = queue_counters.last_number + 1 RETURNING last_number`,
-  so the first join of a day is serialized too. A unique index on
+ON CONFLICT (restaurant_id, service_day) DO UPDATE SET last_number = queue_counters.last_number + 1
+RETURNING last_number`, so the first join of a day is serialized too. A unique index on
   `(restaurant_id, service_day, number)` is the backstop.
 - **One active entry:** a partial unique index on `(restaurant_id, guest_id, service_day)
 WHERE status IN ('waiting','called')`. A violation (`23505`) maps to `ALREADY_ACTIVE`, never a 500.
