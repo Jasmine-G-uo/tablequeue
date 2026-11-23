@@ -1,6 +1,6 @@
 # TableQueue — Architecture and Delivery Plan
 
-- Status: v2 (Sprint 1) — revised after [independent review](reviews/plan-review.md)
+- Status: v3 (Sprint 1) — v2 revised after [independent review](reviews/plan-review.md); v3 settles the queue-domain interface (#3)
 - Spec: [PRD.md](PRD.md)
 - Last updated: 2026-11-20
 
@@ -48,9 +48,11 @@ staff-ui ─┘        │       └─▶ db
 - Coverage thresholds in `vitest.config.mts` are one line per module glob, so branches merge
   without conflicts.
 
-### 2.2 queue-domain interface (draft)
+### 2.2 queue-domain interface (settled in #3)
 
-Exact signatures are settled test-first in #3; this is the intended shape.
+The draft in v2 was settled test-first in #3; this is the implemented shape
+(`src/lib/queue/queue.ts`). Changes from the draft are listed in
+[plans/3-queue-domain.md](plans/3-queue-domain.md).
 
 ```ts
 type QueueStatus = "waiting" | "called" | "seated" | "skipped" | "cancelled";
@@ -69,22 +71,20 @@ interface QueueEntry {
 }
 
 type QueueError =
-  | { code: "INVALID_PARTY_SIZE" }
-  | { code: "ALREADY_ACTIVE"; entry: QueueEntry }
-  | { code: "INVALID_TRANSITION"; from: QueueStatus; to: QueueStatus }
-  | { code: "NOT_OWNER" }
-  | { code: "FORBIDDEN_ROLE" }
-  | { code: "QUEUE_EMPTY" };
+  | { code: "invalid_party_size" }
+  | { code: "already_in_queue"; entry: QueueEntry }
+  | { code: "invalid_transition"; from: QueueStatus; to: QueueStatus }
+  | { code: "not_found" }
+  | { code: "forbidden" }
+  | { code: "queue_empty" };
 type Result<T> = { ok: true; value: T } | { ok: false; error: QueueError };
 
-serviceDayFor(now: Date, timeZone: string): string;
 validatePartySize(input: unknown): Result<number>;
-nextQueueNumber(entries: QueueEntry[], serviceDay: string): number; // max(number of that day, any status) + 1
-isActive(entry: QueueEntry, serviceDay: string): boolean; // waiting|called AND same day
+nextQueueNumber(entries: QueueEntry[], serviceDay: string, restaurantId?: string): number; // max(number of that day, any status) + 1
 canJoin(entries: QueueEntry[], guestId: string, serviceDay: string): Result<void>;
 activeQueue(entries: QueueEntry[], serviceDay: string): QueueEntry[]; // waiting+called, by number
 partiesAhead(entries: QueueEntry[], entryId: string, serviceDay: string): number | null;
-selectNextToCall(entries: QueueEntry[], serviceDay: string): Result<QueueEntry>;
+callNext(entries: QueueEntry[], actor: Actor, now: Date, serviceDay: string): Result<QueueEntry>;
 transition(entry: QueueEntry, to: QueueStatus, actor: Actor, now: Date, serviceDay: string): Result<QueueEntry>;
 ```
 
@@ -93,6 +93,16 @@ transition(entry: QueueEntry, to: QueueStatus, actor: Actor, now: Date, serviceD
 - Ordering is always by `number`, never by `joinedAt`.
 - `activeQueue` feeds both the staff list and `partiesAhead`, so the two views cannot disagree.
 - `partiesAhead` returns `null` for any entry that is not active and `waiting`.
+- An entry is active (internal `isActive`) when it is `waiting`/`called` on the given service day.
+- `transition` checks in this order: role (`forbidden`), ownership for guests (`not_found`), then
+  expiry and the status table (`invalid_transition`), so a refusal never reveals another guest's
+  entry.
+- `serviceDayFor(now, timeZone)` moved to queue-service: no #3 criterion needs it, and it is the
+  only function that reads a time zone. Its midnight, UTC-vs-local, and DST tests are criteria of
+  #9.
+- Callers pass one restaurant's entries (AD-2). Only `nextQueueNumber` takes an optional
+  `restaurantId`, because only its criterion names the restaurant ("unique per restaurant and
+  service day"); the other list functions do not filter by restaurant.
 
 ### 2.3 Consistency rules (queue-service)
 
@@ -102,7 +112,7 @@ ON CONFLICT (restaurant_id, service_day) DO UPDATE SET last_number = queue_count
 RETURNING last_number`, so the first join of a day is serialized too. A unique index on
   `(restaurant_id, service_day, number)` is the backstop.
 - **One active entry:** a partial unique index on `(restaurant_id, guest_id, service_day)
-WHERE status IN ('waiting','called')`. A violation (`23505`) maps to `ALREADY_ACTIVE`, never a 500.
+WHERE status IN ('waiting','called')`. A violation (`23505`) maps to `already_in_queue`, never a 500.
 - **Every transition** (call, seat, skip, cancel) is a compare-and-set:
   `UPDATE … SET status = $to WHERE id = $id AND status = $from RETURNING *`. Zero rows → `conflict`.
 - **Call next:** `SELECT … WHERE status = 'waiting' AND service_day = $today ORDER BY number
@@ -150,18 +160,22 @@ LIMIT 1 FOR UPDATE SKIP LOCKED`, then the compare-and-set above, in one transact
 
 ## 4. Risks
 
-| Risk                                                                      | Mitigation                                                                                                                               |
-| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Next.js 16 / Auth.js APIs differ from older docs (`middleware` → `proxy`) | Read `node_modules/next/dist/docs/` and installed types first; enforce roles in every server action / route handler, not only in `proxy` |
-| Auth.js compatibility with Next 16 unproven                               | Spike sign-in first in #2; fall back to a minimal session library if blocked                                                             |
-| Race conditions in join / call next / transitions                         | Counter row, compare-and-set, `SKIP LOCKED`, unique indexes (§2.3); integration race tests                                               |
-| Service-day boundary and leftover entries                                 | Service day computed once from the configured time zone and passed in; domain tests across midnight                                      |
-| Serverless driver without transactions                                    | Require a pooled driver with interactive transactions (§2.3)                                                                             |
-| IDOR on guest actions                                                     | Ownership from the session only (§2.3); tests for another guest's entry                                                                  |
-| Merge conflicts between parallel branches                                 | Shared config settled in #1; one threshold line per module; lockfile conflicts resolved from `main`                                      |
+| Risk                                                                      | Mitigation                                                                                                                                                                                               |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Next.js 16 / Auth.js APIs differ from older docs (`middleware` → `proxy`) | Read `node_modules/next/dist/docs/` and installed types first; enforce roles in every server action / route handler, not only in `proxy`                                                                 |
+| Auth.js compatibility with Next 16 unproven                               | Spike sign-in first in #2; fall back to a minimal session library if blocked                                                                                                                             |
+| Race conditions in join / call next / transitions                         | Counter row, compare-and-set, `SKIP LOCKED`, unique indexes (§2.3); integration race tests                                                                                                               |
+| Service-day boundary and leftover entries                                 | Service day computed once from the configured time zone and passed in; leftover entries are unit-tested in the domain (#3); midnight, UTC-vs-local, and DST tests for `serviceDayFor` are criteria of #9 |
+| Serverless driver without transactions                                    | Require a pooled driver with interactive transactions (§2.3)                                                                                                                                             |
+| IDOR on guest actions                                                     | Ownership from the session only (§2.3); tests for another guest's entry                                                                                                                                  |
+| Merge conflicts between parallel branches                                 | Shared config settled in #1; one threshold line per module; lockfile conflicts resolved from `main`                                                                                                      |
 
 ## 5. Change log
 
+- **v3 (#3):** §2.2 updated to the interface settled test-first: snake_case error codes matching
+  the PRD, `callNext` instead of `selectNextToCall`, `not_found` / `forbidden` instead of
+  `NOT_OWNER` / `FORBIDDEN_ROLE`, check order for `transition`, `serviceDayFor` moved to
+  queue-service.
 - **v2:** addressed the independent review — first-join race (counter row), compare-and-set for
   all transitions and `SKIP LOCKED` for call-next, service day in the domain interface, leftover
   entries, typed `Result`/`QueueError`, ordering by number, shared conventions between #2 and #3,
