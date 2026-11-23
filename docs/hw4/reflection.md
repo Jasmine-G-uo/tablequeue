@@ -51,6 +51,9 @@ the first failure instead of 15 minutes after the fifth, and ten parallel wrong 
 all checked. Both were proved with failing tests before they were fixed
 ([`4b20f79`](https://github.com/Jasmine-G-uo/tablequeue/commit/4b20f7944e470af9162cbcf531f111e0b67410c6) →
 [`b25863f`](https://github.com/Jasmine-G-uo/tablequeue/commit/b25863fba5a6ffdd7b603d3fea4604c989eb4fef)).
+The partner review of the four PRs then caught what no agent review had: a branch-protection
+setting that let admins skip review, a counter upsert PostgreSQL would reject, and a claim in
+these docs that the issue history contradicted (session log, Review).
 
 **The cost** is more ceremony per change. For a one-line fix (a stale CI comment, a README
 correction) the full cycle is overhead, and we used a plain commit. For anything with a design
